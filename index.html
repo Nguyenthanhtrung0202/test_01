@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>TinyBee</title>
+
+  <!-- MQTT.js for browser -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :root {
+      --bg: #f5f5f7;
+      --card: #ffffff;
+      --text: #1d1d1f;
+      --secondary: #86868b;
+      --line: #eeeeef;
+      --green: #34c759;
+      --red: #ff3b30;
+      --gray: #e5e5ea;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "SF Pro Display",
+        "SF Pro Text",
+        "Segoe UI",
+        Arial,
+        sans-serif;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 30px 20px 40px;
+    }
+
+    .header {
+      margin-bottom: 22px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 31px;
+      line-height: 1.05;
+      font-weight: 700;
+      letter-spacing: -0.9px;
+    }
+
+    .header p {
+      margin: 7px 0 0;
+      font-size: 15px;
+      color: var(--secondary);
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 22px;
+      padding: 22px;
+      margin-bottom: 15px;
+      box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.03),
+        0 10px 30px rgba(0, 0, 0, 0.045);
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .control-left {
+      min-width: 0;
+    }
+
+    .control-title {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.25px;
+    }
+
+    .control-subtitle {
+      margin-top: 4px;
+      font-size: 14px;
+      color: var(--secondary);
+    }
+
+    /* iOS-like switch */
+    .switch {
+      position: relative;
+      width: 62px;
+      height: 36px;
+      flex: 0 0 auto;
+    }
+
+    .switch input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: var(--gray);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .slider::before {
+      content: "";
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      left: 3px;
+      top: 3px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.18);
+      transition: transform 0.2s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    .switch input:checked + .slider {
+      background: var(--green);
+    }
+
+    .switch input:checked + .slider::before {
+      transform: translateX(26px);
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--secondary);
+      font-size: 14px;
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      margin-right: 9px;
+      border-radius: 50%;
+      background: #8e8e93;
+      transition: all 0.2s ease;
+    }
+
+    .status-dot.on {
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(52, 199, 89, 0.12);
+    }
+
+    .connection-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .connection-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--secondary);
+    }
+
+    .connection-dot.connected {
+      background: var(--green);
+    }
+
+    .connection-dot.error {
+      background: var(--red);
+    }
+
+    .info-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .info-row:first-child {
+      padding-top: 0;
+    }
+
+    .info-row:last-child {
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .label {
+      font-size: 14px;
+      color: var(--secondary);
+    }
+
+    .value {
+      font-size: 14px;
+      font-weight: 500;
+      text-align: right;
+      word-break: break-word;
+    }
+
+    .hint {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #a1a1a6;
+      line-height: 1.45;
+    }
+
+    .footer {
+      margin-top: 8px;
+      text-align: center;
+      color: #a1a1a6;
+      font-size: 12px;
+    }
+
+    .disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+
+    <div class="header">
+      <h1>TinyBee</h1>
+      <p>Remote ESP32 Control Panel</p>
+    </div>
+
+    <!-- LED control -->
+    <div class="card">
+      <div class="control-row">
+        <div class="control-left">
+          <div class="control-title">LED</div>
+          <div class="control-subtitle">GPIO 2</div>
+        </div>
+
+        <label class="switch" id="switchWrap">
+          <input type="checkbox" id="ledSwitch">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="status-row">
+        <div class="status-dot" id="ledDot"></div>
+        <div id="ledText">LED đang tắt</div>
+      </div>
+    </div>
+
+    <!-- Connection -->
+    <div class="card">
+      <div class="connection-row">
+        <span class="connection-dot" id="connectionDot"></span>
+        <span id="connectionText">Đang kết nối MQTT...</span>
+      </div>
+
+      <div class="hint">
+        Browser → WebSocket → HiveMQ → TinyBee
+      </div>
+    </div>
+
+    <!-- Info -->
+    <div class="card">
+      <div class="info-list">
+
+        <div class="info-row">
+          <div class="label">Broker</div>
+          <div class="value">broker.hivemq.com</div>
+        </div>
+
+        <div class="info-row">
+          <div class="label">WebSocket</div>
+          <div class="value">8884 / TLS</div>
+        </div>
+
+        <div class="info-row">
+          <div class="label">Topic</div>
+          <div class="value" id="topicText"></div>
+        </div>
+
+        <div class="info-row">
+          <div class="label">Client ID</div>
+          <div class="value" id="clientIdText"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="footer">
+      TinyBee • Wi-Fi / MQTT Test
+    </div>
+
+  </div>
+
+  <script>
+    // ============================================================
+    // SETTINGS
+    // Must match your TinyBee firmware.
+    // ============================================================
+    const MQTT_URL = "wss://broker.hivemq.com:8884/mqtt";
+    const MQTT_TOPIC = "tinybee/test123/led";
+
+    // Unique browser client ID
+    const CLIENT_ID =
+      "TinyBeeWeb-" +
+      Math.random().toString(16).slice(2, 10);
+
+    const ledSwitch = document.getElementById("ledSwitch");
+    const ledDot = document.getElementById("ledDot");
+    const ledText = document.getElementById("ledText");
+
+    const connectionDot =
+      document.getElementById("connectionDot");
+
+    const connectionText =
+      document.getElementById("connectionText");
+
+    document.getElementById("topicText").textContent =
+      MQTT_TOPIC;
+
+    document.getElementById("clientIdText").textContent =
+      CLIENT_ID;
+
+    // ============================================================
+    // UPDATE LED UI
+    // ============================================================
+    function updateLEDUI(isOn) {
+      ledSwitch.checked = isOn;
+
+      if (isOn) {
+        ledDot.classList.add("on");
+        ledText.textContent = "LED đang bật";
+      } else {
+        ledDot.classList.remove("on");
+        ledText.textContent = "LED đang tắt";
+      }
+    }
+
+    // ============================================================
+    // CONNECTION STATUS
+    // ============================================================
+    function setConnection(state, text) {
+      connectionDot.classList.remove("connected", "error");
+
+      if (state === "connected") {
+        connectionDot.classList.add("connected");
+      }
+
+      if (state === "error") {
+        connectionDot.classList.add("error");
+      }
+
+      connectionText.textContent = text;
+    }
+
+    // ============================================================
+    // CONNECT
+    // ============================================================
+    const client = mqtt.connect(MQTT_URL, {
+      clientId: CLIENT_ID,
+      clean: true,
+      connectTimeout: 10000,
+      reconnectPeriod: 3000
+    });
+
+    client.on("connect", function () {
+      setConnection(
+        "connected",
+        "Đã kết nối MQTT"
+      );
+
+      // Subscribe so the page can see ON/OFF messages.
+      client.subscribe(
+        MQTT_TOPIC,
+        { qos: 0 },
+        function (err) {
+          if (err) {
+            setConnection(
+              "error",
+              "Subscribe thất bại"
+            );
+            console.error(err);
+          }
+        }
+      );
+    });
+
+    client.on("reconnect", function () {
+      setConnection(
+        "connecting",
+        "Đang kết nối lại..."
+      );
+    });
+
+    client.on("close", function () {
+      setConnection(
+        "connecting",
+        "MQTT đã ngắt kết nối"
+      );
+    });
+
+    client.on("offline", function () {
+      setConnection(
+        "connecting",
+        "MQTT offline"
+      );
+    });
+
+    client.on("error", function (err) {
+      setConnection(
+        "error",
+        "Lỗi MQTT"
+      );
+
+      console.error(
+        "MQTT error:",
+        err
+      );
+    });
+
+    // ============================================================
+    // RECEIVE MQTT MESSAGE
+    // ============================================================
+    client.on("message", function (topic, payload) {
+
+      const message =
+        payload.toString().trim().toUpperCase();
+
+      console.log(
+        "MQTT:",
+        topic,
+        message
+      );
+
+      if (topic !== MQTT_TOPIC) {
+        return;
+      }
+
+      if (message === "ON") {
+        updateLEDUI(true);
+      }
+
+      if (message === "OFF") {
+        updateLEDUI(false);
+      }
+    });
+
+    // ============================================================
+    // SEND ON / OFF
+    // ============================================================
+    ledSwitch.addEventListener(
+      "change",
+      function () {
+
+        if (!client.connected) {
+
+          // Revert UI if MQTT is not connected.
+          updateLEDUI(
+            !ledSwitch.checked
+          );
+
+          alert(
+            "MQTT chưa kết nối."
+          );
+
+          return;
+        }
+
+        const message =
+          ledSwitch.checked
+            ? "ON"
+            : "OFF";
+
+        client.publish(
+          MQTT_TOPIC,
+          message,
+          { qos: 0 },
+          function (err) {
+
+            if (err) {
+
+              console.error(
+                "Publish error:",
+                err
+              );
+
+              updateLEDUI(
+                !ledSwitch.checked
+              );
+
+              alert(
+                "Không gửi được lệnh MQTT."
+              );
+
+              return;
+            }
+
+            // Update local UI immediately.
+            updateLEDUI(
+              message === "ON"
+            );
+
+          }
+        );
+      }
+    );
+
+    // Initial state
+    updateLEDUI(false);
+  </script>
+</body>
+</html>
