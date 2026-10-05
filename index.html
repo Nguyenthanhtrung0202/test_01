@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>TinyBee</title>
+  <title>TinyBee • FAN1</title>
 
-  <!-- MQTT.js for browser -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
   <style>
@@ -82,10 +81,6 @@
       gap: 20px;
     }
 
-    .control-left {
-      min-width: 0;
-    }
-
     .control-title {
       font-size: 18px;
       font-weight: 600;
@@ -98,7 +93,7 @@
       color: var(--secondary);
     }
 
-    /* iOS-like switch */
+    /* iOS-like toggle */
     .switch {
       position: relative;
       width: 62px;
@@ -129,9 +124,10 @@
       left: 3px;
       top: 3px;
       border-radius: 50%;
-      background: white;
+      background: #fff;
       box-shadow: 0 2px 5px rgba(0,0,0,0.18);
-      transition: transform 0.2s cubic-bezier(.4, 0, .2, 1);
+      transition:
+        transform 0.2s cubic-bezier(.4,0,.2,1);
     }
 
     .switch input:checked + .slider {
@@ -163,10 +159,10 @@
 
     .status-dot.on {
       background: var(--green);
-      box-shadow: 0 0 0 4px rgba(52, 199, 89, 0.12);
+      box-shadow: 0 0 0 4px rgba(52,199,89,0.12);
     }
 
-    .connection-row {
+    .connection {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -177,7 +173,7 @@
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: var(--secondary);
+      background: #8e8e93;
     }
 
     .connection-dot.connected {
@@ -217,17 +213,11 @@
     }
 
     .value {
+      max-width: 65%;
       font-size: 14px;
       font-weight: 500;
       text-align: right;
       word-break: break-word;
-    }
-
-    .hint {
-      margin-top: 12px;
-      font-size: 12px;
-      color: #a1a1a6;
-      line-height: 1.45;
     }
 
     .footer {
@@ -236,203 +226,307 @@
       color: #a1a1a6;
       font-size: 12px;
     }
-
-    .disabled {
-      opacity: 0.5;
-      pointer-events: none;
-    }
   </style>
 </head>
 
 <body>
-  <div class="container">
 
-    <div class="header">
-      <h1>TinyBee</h1>
-      <p>Remote ESP32 Control Panel</p>
+<div class="container">
+
+  <div class="header">
+    <h1>TinyBee</h1>
+    <p>Remote Control Panel</p>
+  </div>
+
+  <!-- FAN1 CONTROL -->
+  <div class="card">
+
+    <div class="control-row">
+
+      <div>
+        <div class="control-title">
+          Solenoid Valve
+        </div>
+
+        <div class="control-subtitle">
+          FAN1 • 24V / 0.85W
+        </div>
+      </div>
+
+      <label class="switch">
+        <input
+          id="fanSwitch"
+          type="checkbox"
+          disabled
+        >
+        <span class="slider"></span>
+      </label>
+
     </div>
 
-    <!-- LED control -->
-    <div class="card">
-      <div class="control-row">
-        <div class="control-left">
-          <div class="control-title">LED</div>
-          <div class="control-subtitle">GPIO 2</div>
-        </div>
 
-        <label class="switch" id="switchWrap">
-          <input type="checkbox" id="ledSwitch">
-          <span class="slider"></span>
-        </label>
+    <div class="status-row">
+
+      <div
+        id="statusDot"
+        class="status-dot">
       </div>
 
-      <div class="status-row">
-        <div class="status-dot" id="ledDot"></div>
-        <div id="ledText">LED đang tắt</div>
-      </div>
-    </div>
-
-    <!-- Connection -->
-    <div class="card">
-      <div class="connection-row">
-        <span class="connection-dot" id="connectionDot"></span>
-        <span id="connectionText">Đang kết nối MQTT...</span>
+      <div id="statusText">
+        Đang kết nối...
       </div>
 
-      <div class="hint">
-        Browser → WebSocket → HiveMQ → TinyBee
-      </div>
-    </div>
-
-    <!-- Info -->
-    <div class="card">
-      <div class="info-list">
-
-        <div class="info-row">
-          <div class="label">Broker</div>
-          <div class="value">broker.hivemq.com</div>
-        </div>
-
-        <div class="info-row">
-          <div class="label">WebSocket</div>
-          <div class="value">8884 / TLS</div>
-        </div>
-
-        <div class="info-row">
-          <div class="label">Topic</div>
-          <div class="value" id="topicText"></div>
-        </div>
-
-        <div class="info-row">
-          <div class="label">Client ID</div>
-          <div class="value" id="clientIdText"></div>
-        </div>
-
-      </div>
-    </div>
-
-    <div class="footer">
-      TinyBee • Wi-Fi / MQTT Test
     </div>
 
   </div>
 
-  <script>
-    // ============================================================
-    // SETTINGS
-    // Must match your TinyBee firmware.
-    // ============================================================
-    const MQTT_URL = "wss://broker.hivemq.com:8884/mqtt";
-    const MQTT_TOPIC = "tinybee/test123/led";
 
-    // Unique browser client ID
-    const CLIENT_ID =
-      "TinyBeeWeb-" +
-      Math.random().toString(16).slice(2, 10);
+  <!-- MQTT -->
+  <div class="card">
 
-    const ledSwitch = document.getElementById("ledSwitch");
-    const ledDot = document.getElementById("ledDot");
-    const ledText = document.getElementById("ledText");
+    <div class="connection">
 
-    const connectionDot =
-      document.getElementById("connectionDot");
+      <span
+        id="connectionDot"
+        class="connection-dot">
+      </span>
 
-    const connectionText =
-      document.getElementById("connectionText");
+      <span id="connectionText">
+        MQTT đang kết nối...
+      </span>
 
-    document.getElementById("topicText").textContent =
-      MQTT_TOPIC;
+    </div>
 
-    document.getElementById("clientIdText").textContent =
-      CLIENT_ID;
+  </div>
 
-    // ============================================================
-    // UPDATE LED UI
-    // ============================================================
-    function updateLEDUI(isOn) {
-      ledSwitch.checked = isOn;
 
-      if (isOn) {
-        ledDot.classList.add("on");
-        ledText.textContent = "LED đang bật";
-      } else {
-        ledDot.classList.remove("on");
-        ledText.textContent = "LED đang tắt";
-      }
+  <!-- INFO -->
+  <div class="card">
+
+    <div class="info-list">
+
+      <div class="info-row">
+        <div class="label">Device</div>
+        <div class="value">MKS TinyBee V1.0</div>
+      </div>
+
+      <div class="info-row">
+        <div class="label">Output</div>
+        <div class="value">FAN1 / IO147</div>
+      </div>
+
+      <div class="info-row">
+        <div class="label">MQTT Broker</div>
+        <div class="value">broker.hivemq.com</div>
+      </div>
+
+      <div class="info-row">
+        <div class="label">Command Topic</div>
+        <div class="value" id="cmdTopic"></div>
+      </div>
+
+      <div class="info-row">
+        <div class="label">State Topic</div>
+        <div class="value" id="stateTopic"></div>
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <div class="footer">
+    TinyBee • FAN1 Test
+  </div>
+
+</div>
+
+
+<script>
+
+  // ============================================================
+  // MQTT SETTINGS
+  // ============================================================
+
+  // Secure WebSocket so this page works from GitHub Pages (HTTPS).
+  const MQTT_URL =
+    "wss://broker.hivemq.com:8884/mqtt";
+
+  const MQTT_CMD_TOPIC =
+    "tinybee/test123/fan1/cmd";
+
+  const MQTT_STATE_TOPIC =
+    "tinybee/test123/fan1/state";
+
+  const CLIENT_ID =
+    "TinyBeeWeb-" +
+    Math.random().toString(16).slice(2, 10);
+
+
+  // ============================================================
+  // DOM
+  // ============================================================
+
+  const fanSwitch =
+    document.getElementById("fanSwitch");
+
+  const statusDot =
+    document.getElementById("statusDot");
+
+  const statusText =
+    document.getElementById("statusText");
+
+  const connectionDot =
+    document.getElementById("connectionDot");
+
+  const connectionText =
+    document.getElementById("connectionText");
+
+
+  document.getElementById("cmdTopic").textContent =
+    MQTT_CMD_TOPIC;
+
+  document.getElementById("stateTopic").textContent =
+    MQTT_STATE_TOPIC;
+
+
+  // ============================================================
+  // LED / VALVE UI
+  // ============================================================
+
+  function updateUI(isOn) {
+
+    fanSwitch.checked = isOn;
+
+    if (isOn) {
+
+      statusDot.classList.add("on");
+
+      statusText.textContent =
+        "Van đang mở";
+
+    } else {
+
+      statusDot.classList.remove("on");
+
+      statusText.textContent =
+        "Van đang đóng";
+    }
+  }
+
+
+  // ============================================================
+  // MQTT CONNECTION STATUS
+  // ============================================================
+
+  function setConnectionState(
+    state,
+    message
+  ) {
+
+    connectionDot.classList.remove(
+      "connected",
+      "error"
+    );
+
+    if (state === "connected") {
+      connectionDot.classList.add(
+        "connected"
+      );
     }
 
-    // ============================================================
-    // CONNECTION STATUS
-    // ============================================================
-    function setConnection(state, text) {
-      connectionDot.classList.remove("connected", "error");
-
-      if (state === "connected") {
-        connectionDot.classList.add("connected");
-      }
-
-      if (state === "error") {
-        connectionDot.classList.add("error");
-      }
-
-      connectionText.textContent = text;
+    if (state === "error") {
+      connectionDot.classList.add(
+        "error"
+      );
     }
 
-    // ============================================================
-    // CONNECT
-    // ============================================================
-    const client = mqtt.connect(MQTT_URL, {
+    connectionText.textContent =
+      message;
+  }
+
+
+  // ============================================================
+  // CONNECT
+  // ============================================================
+
+  const client = mqtt.connect(
+    MQTT_URL,
+    {
       clientId: CLIENT_ID,
       clean: true,
       connectTimeout: 10000,
       reconnectPeriod: 3000
-    });
+    }
+  );
 
-    client.on("connect", function () {
-      setConnection(
+
+  client.on(
+    "connect",
+    function () {
+
+      setConnectionState(
         "connected",
         "Đã kết nối MQTT"
       );
 
-      // Subscribe so the page can see ON/OFF messages.
+      fanSwitch.disabled = false;
+
       client.subscribe(
-        MQTT_TOPIC,
+        MQTT_STATE_TOPIC,
         { qos: 0 },
         function (err) {
+
           if (err) {
-            setConnection(
+
+            setConnectionState(
               "error",
               "Subscribe thất bại"
             );
-            console.error(err);
+
+            return;
           }
         }
       );
-    });
+    }
+  );
 
-    client.on("reconnect", function () {
-      setConnection(
+
+  client.on(
+    "reconnect",
+    function () {
+
+      fanSwitch.disabled = true;
+
+      setConnectionState(
         "connecting",
         "Đang kết nối lại..."
       );
-    });
+    }
+  );
 
-    client.on("close", function () {
-      setConnection(
+
+  client.on(
+    "close",
+    function () {
+
+      fanSwitch.disabled = true;
+
+      setConnectionState(
         "connecting",
         "MQTT đã ngắt kết nối"
       );
-    });
+    }
+  );
 
-    client.on("offline", function () {
-      setConnection(
-        "connecting",
-        "MQTT offline"
-      );
-    });
 
-    client.on("error", function (err) {
-      setConnection(
+  client.on(
+    "error",
+    function (err) {
+
+      fanSwitch.disabled = true;
+
+      setConnectionState(
         "error",
         "Lỗi MQTT"
       );
@@ -441,97 +535,90 @@
         "MQTT error:",
         err
       );
-    });
+    }
+  );
 
-    // ============================================================
-    // RECEIVE MQTT MESSAGE
-    // ============================================================
-    client.on("message", function (topic, payload) {
 
-      const message =
-        payload.toString().trim().toUpperCase();
+  // ============================================================
+  // RECEIVE REAL STATE FROM TINYBEE
+  // ============================================================
 
-      console.log(
-        "MQTT:",
-        topic,
-        message
-      );
+  client.on(
+    "message",
+    function (topic, payload) {
 
-      if (topic !== MQTT_TOPIC) {
+      if (topic !== MQTT_STATE_TOPIC) {
         return;
       }
 
-      if (message === "ON") {
-        updateLEDUI(true);
+      const state =
+        payload
+          .toString()
+          .trim()
+          .toUpperCase();
+
+      if (state === "ON") {
+        updateUI(true);
       }
 
-      if (message === "OFF") {
-        updateLEDUI(false);
+      if (state === "OFF") {
+        updateUI(false);
       }
-    });
+    }
+  );
 
-    // ============================================================
-    // SEND ON / OFF
-    // ============================================================
-    ledSwitch.addEventListener(
-      "change",
-      function () {
 
-        if (!client.connected) {
+  // ============================================================
+  // SEND ON / OFF
+  // ============================================================
 
-          // Revert UI if MQTT is not connected.
-          updateLEDUI(
-            !ledSwitch.checked
-          );
+  fanSwitch.addEventListener(
+    "change",
+    function () {
 
-          alert(
-            "MQTT chưa kết nối."
-          );
+      if (!client.connected) {
 
-          return;
-        }
+        updateUI(
+          !fanSwitch.checked
+        );
 
-        const message =
-          ledSwitch.checked
-            ? "ON"
-            : "OFF";
+        return;
+      }
 
-        client.publish(
-          MQTT_TOPIC,
-          message,
-          { qos: 0 },
-          function (err) {
+      const message =
+        fanSwitch.checked
+          ? "ON"
+          : "OFF";
 
-            if (err) {
 
-              console.error(
-                "Publish error:",
-                err
-              );
+      client.publish(
+        MQTT_CMD_TOPIC,
+        message,
+        { qos: 0 },
+        function (err) {
 
-              updateLEDUI(
-                !ledSwitch.checked
-              );
+          if (err) {
 
-              alert(
-                "Không gửi được lệnh MQTT."
-              );
-
-              return;
-            }
-
-            // Update local UI immediately.
-            updateLEDUI(
-              message === "ON"
+            console.error(
+              "Publish error:",
+              err
             );
 
+            // Revert UI if publish failed.
+            updateUI(
+              !fanSwitch.checked
+            );
           }
-        );
-      }
-    );
+        }
+      );
+    }
+  );
 
-    // Initial state
-    updateLEDUI(false);
-  </script>
+
+  // Initial UI
+  updateUI(false);
+
+</script>
+
 </body>
 </html>
